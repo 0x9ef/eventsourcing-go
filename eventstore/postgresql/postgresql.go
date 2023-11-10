@@ -13,6 +13,10 @@ type eventRepository struct {
 	conn *sql.DB
 }
 
+func New(conn *sql.DB) *eventRepository {
+	return &eventRepository{conn}
+}
+
 func (r *eventRepository) Get(ctx context.Context, aggregateID, aggregateType string, version event.Version) (event.Eventer, error) {
 	b := sqlbuilder.PostgreSQL.
 		NewSelectBuilder().

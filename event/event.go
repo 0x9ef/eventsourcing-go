@@ -58,6 +58,7 @@ func New(reason string, payload interface{}) (*Event, error) {
 	return &Event{
 		reason:  reason,
 		payload: b,
+		tstamp:  Timestamp(time.Now()),
 	}, nil
 }
 
@@ -115,6 +116,14 @@ func (evt *Event) GetPayload() Payload {
 
 func (evt *Event) SetPayload(payload Payload) {
 	evt.payload = payload
+}
+
+func Covarience(events []*Event) []Eventer {
+	p := make([]Eventer, len(events))
+	for i, evt := range events {
+		p[i] = evt
+	}
+	return p
 }
 
 // Aggregator is main interface that responsibles for event aggregation.

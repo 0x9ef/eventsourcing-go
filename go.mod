@@ -6,6 +6,7 @@ require github.com/google/uuid v1.4.0
 
 require (
 	github.com/huandu/go-sqlbuilder v1.23.0
+	github.com/lib/pq v1.2.0
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/stretchr/testify v1.8.0
@@ -26,7 +27,6 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/lib/pq v1.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
