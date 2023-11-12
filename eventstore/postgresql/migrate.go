@@ -8,10 +8,10 @@ var createMigrations = []string{
 		aggregate_type VARCHAR(128) NOT NULL,
 		reason         TEXT NOT NULL,
 		version        SMALLINT NOT NULL,
-		tstamp         TIMESTAMP WITH TIMEZONE NOT NULL,
-		payload        bytea,
+		tstamp         TIMESTAMPTZ NOT NULL,
+		payload        bytea
 	);`,
-	"CREATE UNIQUE INDEX id_type_version_un ON public.es_events (aggregate_id, aggregate_type, version) USING (btree);",
+	"CREATE UNIQUE INDEX id_type_version_un ON public.es_events (aggregate_id, aggregate_type, version);",
 	"CREATE INDEX id_type_idx ON public.es_events (aggregate_id, aggregate_type);",
 }
 

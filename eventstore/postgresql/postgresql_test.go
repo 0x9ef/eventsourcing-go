@@ -3,6 +3,8 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +15,7 @@ import (
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/0x9ef/eventsourcing-go"
 	"github.com/0x9ef/eventsourcing-go/event"
 )
 
@@ -59,7 +62,7 @@ func TestMain(m *testing.M) {
 	logger.Print("Trying to connect to database...")
 	if err := pool.Retry(func() error {
 		var err error
-		db, err = sql.Open("postgres", fmt.Sprintf("port=%s user=root password=root dbname=test", resourcePort))
+		db, err = sql.Open("postgres", fmt.Sprintf("port=%s user=root password=root dbname=test sslmode=disable", resourcePort))
 		if err != nil {
 			return err
 		}
@@ -69,7 +72,7 @@ func TestMain(m *testing.M) {
 	}
 
 	logger.Print("Migration SQL statements...")
-	if err := New(db).migrate(context.Background(), createMigrations); err != nil {
+	if err := New(db, "es_events").migrate(context.Background(), createMigrations); err != nil {
 		log.Fatalf("failed to migrate: %s", err)
 	}
 
@@ -79,25 +82,70 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to purge postgres resource: %s", err)
 	}
 
-	logger.Print("Exit.")
+	logger.Printf("Exit %d.", exitCode)
 	os.Exit(exitCode)
+}
+
+type TestAggregator struct {
+	*eventsourcing.AggregateRoot
+	Status string
+}
+
+const (
+	testAggregateReasonCreated   = "created"
+	testAggregateReasonConfirmed = "confirmed"
+)
+
+func (ta *TestAggregator) Transition(evt event.Eventer) error {
+	switch evt.GetReason() {
+	case testAggregateReasonCreated:
+		return ta.onCreated(evt)
+	case testAggregateReasonConfirmed:
+		return ta.onConfirmed(evt)
+	}
+	return errors.New("undefined event type")
 }
 
 type eventTestCreated struct {
 	Status string
 }
 
+func (ta *TestAggregator) onCreated(evt event.Eventer) error {
+	var payload eventTestCreated
+	if err := json.Unmarshal(evt.GetPayload(), &payload); err != nil {
+		return err
+	}
+	ta.Status = payload.Status
+	return nil
+}
+
 type eventTestConfirmed struct {
 	Status string
 }
 
+func (ta *TestAggregator) onConfirmed(evt event.Eventer) error {
+	var payload eventTestConfirmed
+	if err := json.Unmarshal(evt.GetPayload(), &payload); err != nil {
+		return err
+	}
+	ta.Status = payload.Status
+	return nil
+}
+
 func TestSave(t *testing.T) {
+	agg := &TestAggregator{}
+	root := eventsourcing.New(agg, agg.Transition, eventsourcing.NanoidGenerator)
+
 	events := []*event.Event{
 		event.MustNew("created", eventTestCreated{Status: "Created"}),
 		event.MustNew("confirmed", eventTestConfirmed{Status: "Confirmed"}),
 	}
+	for _, evt := range events {
+		err := root.Apply(evt)
+		assert.NoError(t, err, "failed to apply")
+	}
 
-	repo := New(db)
+	repo := New(db, "es_events")
 	err := repo.Save(context.TODO(), event.Covarience(events))
 	assert.NoError(t, err, "failed to save events in database")
 }

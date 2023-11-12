@@ -10,48 +10,52 @@ import (
 )
 
 type eventRepository struct {
-	conn *sql.DB
+	tableName string
+	conn      *sql.DB
 }
 
-func New(conn *sql.DB) *eventRepository {
-	return &eventRepository{conn}
+func New(conn *sql.DB, tableName string) *eventRepository {
+	return &eventRepository{tableName: tableName, conn: conn}
 }
 
 func (r *eventRepository) Get(ctx context.Context, aggregateID, aggregateType string, version event.Version) (event.Eventer, error) {
-	b := sqlbuilder.PostgreSQL.
+	sb := sqlbuilder.PostgreSQL.
 		NewSelectBuilder().
 		Select(
-			"aggregateId",
-			"aggregateType",
+			"aggregate_id",
+			"aggregate_type",
+			"reason",
 			"version",
 			"tstamp",
 			"payload",
 		).
-		From("es_events")
+		From(r.tableName)
 
-	b = b.Where(
-		b.Equal("aggregate_id", aggregateID),
-		b.And(
-			b.Equal("aggregate_type", aggregateType),
-			b.Equal("version", version),
+	sb = sb.Where(
+		sb.Equal("aggregate_id", aggregateID),
+		sb.And(
+			sb.Equal("aggregate_type", aggregateType),
+			sb.Equal("version", version),
 		),
 	)
 
-	q, args := b.Build()
+	q, args := sb.Build()
 
 	var (
 		evtAggregateId   string
 		evtAggregateType string
+		evtReason        string
 		evtVersion       event.Version
 		evtTimestamp     event.Timestamp
 		evtPayload       event.Payload
 	)
 
 	err := r.conn.
-		QueryRowContext(ctx, q, args).
+		QueryRowContext(ctx, q, args...).
 		Scan(
 			&evtAggregateId,
 			&evtAggregateType,
+			&evtReason,
 			&evtVersion,
 			&evtTimestamp,
 			&evtPayload,
@@ -63,6 +67,7 @@ func (r *eventRepository) Get(ctx context.Context, aggregateID, aggregateType st
 	evt := new(event.Event)
 	evt.SetAggregateId(evtAggregateId)
 	evt.SetAggregateType(evtAggregateType)
+	evt.SetReason(evtReason)
 	evt.SetVersion(evtVersion)
 	evt.SetTimestamp(evtTimestamp)
 	evt.SetPayload(evtPayload)
@@ -77,34 +82,35 @@ type ListFilter struct {
 }
 
 func (r *eventRepository) List(ctx context.Context, aggregateID, aggregateType string, filter *ListFilter) ([]event.Eventer, error) {
-	b := sqlbuilder.PostgreSQL.
+	sb := sqlbuilder.PostgreSQL.
 		NewSelectBuilder().
 		Select(
 			"aggregate_id",
 			"aggregate_type",
+			"reason",
 			"version",
 			"tstamp",
 			"payload",
 		).
-		From("es_events")
+		From(r.tableName)
 
 	var whereExpr []string
-	whereExpr = append(whereExpr, b.Equal("aggregate_id", aggregateID))
-	whereExpr = append(whereExpr, b.And(b.Equal("aggregate_type", aggregateType)))
+	whereExpr = append(whereExpr, sb.Equal("aggregate_id", aggregateID))
+	whereExpr = append(whereExpr, sb.And(sb.Equal("aggregate_type", aggregateType)))
 	if filter != nil && filter.BeforeVersion > 0 {
-		whereExpr = append(whereExpr, b.And(b.LessThan("version", filter.BeforeVersion)))
+		whereExpr = append(whereExpr, sb.And(sb.LessThan("version", filter.BeforeVersion)))
 	}
 	if filter != nil && filter.AfterVersion > 0 {
-		whereExpr = append(whereExpr, b.And(b.GreaterThan("version", filter.AfterVersion)))
+		whereExpr = append(whereExpr, sb.And(sb.GreaterThan("version", filter.AfterVersion)))
 	}
 
-	b = b.Where(whereExpr...)
+	sb = sb.Where(whereExpr...)
 	if filter != nil && filter.Limit > 0 {
-		b = b.Limit(filter.Limit)
+		sb = sb.Limit(filter.Limit)
 	}
 
-	q, args := b.Build()
-	rows, err := r.conn.QueryContext(ctx, q, args)
+	q, args := sb.Build()
+	rows, err := r.conn.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,17 +124,19 @@ func (r *eventRepository) List(ctx context.Context, aggregateID, aggregateType s
 		var (
 			aggregateId   string
 			aggregateType string
+			reason        string
 			version       event.Version
 			tstamp        event.Timestamp
 			payload       event.Payload
 		)
-		if err := rows.Scan(&aggregateId, &aggregateType, &version, &tstamp, &payload); err != nil {
+		if err := rows.Scan(&aggregateId, &aggregateType, &reason, &version, &tstamp, &payload); err != nil {
 			return nil, err
 		}
 
 		evt := new(event.Event)
 		evt.SetAggregateId(aggregateId)
 		evt.SetAggregateType(aggregateType)
+		evt.SetReason(reason)
 		evt.SetVersion(version)
 		evt.SetTimestamp(tstamp)
 		evt.SetPayload(payload)
@@ -162,28 +170,30 @@ func (r *eventRepository) Save(ctx context.Context, events []event.Eventer) erro
 		return err
 	}
 
-	ib := sqlbuilder.PostgreSQL.
-		NewInsertBuilder().
-		InsertInto("es_events").
-		Cols(
-			"aggregate_id",
-			"aggregate_type",
-			"version",
-			"tstamp",
-			"payload",
-		)
-
 	for _, evt := range events {
+		ib := sqlbuilder.PostgreSQL.
+			NewInsertBuilder().
+			InsertInto(r.tableName).
+			Cols(
+				"aggregate_id",
+				"aggregate_type",
+				"reason",
+				"version",
+				"tstamp",
+				"payload",
+			)
+
 		ib = ib.Values(
 			evt.GetAggregateId(),
 			evt.GetAggregateType(),
+			evt.GetReason(),
 			evt.GetVersion(),
 			evt.GetTimestamp(),
 			evt.GetPayload(),
 		)
 		q, args := ib.Build()
 
-		if _, err := r.conn.Exec(q, args); err != nil {
+		if _, err := r.conn.Exec(q, args...); err != nil {
 			return err
 		}
 	}
@@ -199,7 +209,7 @@ func (r *eventRepository) controlConcurrency(ctx context.Context, tx *sql.Tx, ag
 	sb := sqlbuilder.PostgreSQL.
 		NewSelectBuilder().
 		Select("version").
-		From("es_events")
+		From(r.tableName)
 
 	sb = sb.Where(
 		sb.Equal("aggregate_id", aggregateId),
@@ -212,19 +222,20 @@ func (r *eventRepository) controlConcurrency(ctx context.Context, tx *sql.Tx, ag
 		Desc().
 		Limit(1)
 
-	sbq, sbargs := sb.Build()
+	q, args := sb.Build()
 
 	var lastAggregateVersion event.Version
-	err := tx.QueryRowContext(ctx, sbq, sbargs...).Scan(&lastAggregateVersion)
+	err := tx.QueryRowContext(ctx, q, args...).Scan(&lastAggregateVersion)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			lastAggregateVersion = event.EmptyVersion
+		} else {
+			return err
 		}
-		return err
 	}
 
 	// Check that no other versions are inserted
-	if lastAggregateVersion+event.NextVersion != version {
+	if (lastAggregateVersion + event.NextVersion) != version {
 		return ErrControlConcurrency
 	}
 
