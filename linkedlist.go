@@ -1,4 +1,4 @@
-package eventsourcinggo
+package eventsourcing
 
 import "github.com/0x9ef/eventsourcing-go/event"
 

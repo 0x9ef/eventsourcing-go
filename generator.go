@@ -1,4 +1,4 @@
-package eventsourcinggo
+package eventsourcing
 
 import (
 	"github.com/google/uuid"

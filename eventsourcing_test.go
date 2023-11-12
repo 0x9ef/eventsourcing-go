@@ -1,4 +1,4 @@
-package eventsourcinggo
+package eventsourcing
 
 import (
 	"encoding/json"

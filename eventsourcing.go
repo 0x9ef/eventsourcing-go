@@ -1,4 +1,4 @@
-package eventsourcinggo
+package eventsourcing
 
 import (
 	"errors"
@@ -22,7 +22,7 @@ var _ (event.Aggregator) = &AggregateRoot{}
 func New(agg event.Aggregator, transition event.Transition, idgenfn IDGenerator) *AggregateRoot {
 	return &AggregateRoot{
 		currentId:         idgenfn(idDefaultAlphabet, idDefaultSize),
-		currentType:       reflect.TypeOf(agg).Name(),
+		currentType:       reflect.TypeOf(agg).Elem().Name(),
 		committedEvents:   make([]event.Eventer, 0, 8),
 		uncommittedEvents: new(linkedList),
 		transitionfn:      transition,
