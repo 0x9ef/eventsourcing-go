@@ -13,6 +13,7 @@ type Repository interface {
 }
 
 type ListFilter struct {
-	AfterVersion event.Version
-	Limit        int
+	AfterVersion  event.Version
+	BeforeVersion event.Version
+	Limit         int
 }

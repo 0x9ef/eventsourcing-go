@@ -155,4 +155,5 @@ type Aggregator interface {
 	Commit(event Eventer) error
 }
 
+// Transition is a type that makes transition on already known event reason.
 type Transition func(event Eventer) error

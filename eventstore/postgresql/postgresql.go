@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/0x9ef/eventsourcing-go/event"
 	"github.com/huandu/go-sqlbuilder"
+
+	"github.com/0x9ef/eventsourcing-go/event"
+	"github.com/0x9ef/eventsourcing-go/eventstore"
 )
 
 type eventRepository struct {
@@ -75,13 +77,7 @@ func (r *eventRepository) Get(ctx context.Context, aggregateID, aggregateType st
 	return evt, nil
 }
 
-type ListFilter struct {
-	AfterVersion  event.Version
-	BeforeVersion event.Version
-	Limit         int
-}
-
-func (r *eventRepository) List(ctx context.Context, aggregateID, aggregateType string, filter *ListFilter) ([]event.Eventer, error) {
+func (r *eventRepository) List(ctx context.Context, aggregateID, aggregateType string, filter *eventstore.ListFilter) ([]event.Eventer, error) {
 	sb := sqlbuilder.PostgreSQL.
 		NewSelectBuilder().
 		Select(
