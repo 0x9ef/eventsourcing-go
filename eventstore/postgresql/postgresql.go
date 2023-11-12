@@ -16,6 +16,8 @@ type eventRepository struct {
 	conn      *sql.DB
 }
 
+var _ (eventstore.Repository) = &eventRepository{}
+
 func New(conn *sql.DB, tableName string) *eventRepository {
 	return &eventRepository{tableName: tableName, conn: conn}
 }

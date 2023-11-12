@@ -137,20 +137,31 @@ func Covarience(events []*Event) []Eventer {
 }
 
 // Aggregator is main interface that responsibles for event aggregation.
+// Aggregate is a cluster of associated objects treated as a single unit.
 type Aggregator interface {
+	// GetID gets aggregate root id.
 	GetId() string
+	// SetID sets aggregate root id.
 	SetId(id string)
+	// GetType gets aggregate root type.
 	GetType() string
+	// SetType sets aggregate root type.
 	SetType(typ string)
+	// GetVerion gets current aggregate root version.
 	GetVersion() Version
+	// SetVersions sets current aggregate root version.
 	SetVersion(version Version)
-	// ListEvents
+	// ListCommittedEvents returns list of all committed events.
 	ListCommittedEvents() []Eventer
+	// ListUncommittedEvents returns list of all uncommitted yet events.
 	ListUncommittedEvents() []Eventer
-	// Apply
+	// Apply applies not committed yet event into aggregate root. Sets event
+	// id, type and version same as current aggregate root state.
 	Apply(event Eventer) error
+	// ApplyCommitted applies already committed event into aggregate root. Sets
+	// aggregate root id, type and version the same as current applied event.
 	ApplyCommitted(event Eventer) error
-	// Commit marks provided event as committed and deletes
+	// Commit marks provided event as committed and removes
 	// from uncommitted events list.
 	Commit(event Eventer) error
 }

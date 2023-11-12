@@ -9,7 +9,7 @@ import (
 type Repository interface {
 	Get(ctx context.Context, aggregateID, aggregateType string, version event.Version) (event.Eventer, error)
 	List(ctx context.Context, aggregateID, aggregateType string, filter *ListFilter) ([]event.Eventer, error)
-	Save(events []event.Eventer) error
+	Save(ctx context.Context, events []event.Eventer) error
 }
 
 type ListFilter struct {
