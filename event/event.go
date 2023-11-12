@@ -1,6 +1,7 @@
 package event
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"time"
 )
@@ -34,6 +35,15 @@ const (
 
 // Timestamp represents an event timestamp when event was created.
 type Timestamp time.Time
+
+func (t *Timestamp) Scan(value interface{}) error {
+	*t = Timestamp(value.(time.Time))
+	return nil
+}
+
+func (t Timestamp) Value() (driver.Value, error) {
+	return time.Time(t), nil
+}
 
 // Payload represents an event payload (sequence of bytes).
 type Payload []byte
