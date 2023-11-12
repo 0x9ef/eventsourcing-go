@@ -18,6 +18,7 @@ func (l *linkedList) add(value event.Eventer) {
 	}
 	if l.head == nil {
 		l.head = initNode
+		l.len++
 		return
 	}
 

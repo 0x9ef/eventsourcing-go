@@ -218,8 +218,12 @@ func TestCommit(t *testing.T) {
 	}
 
 	for _, evt := range events {
-		err := root.Commit(evt)
+		err := root.Apply(evt)
+		assert.NoError(t, err, "failed to apply")
+
+		err = root.Commit(evt)
 		assert.NoError(t, err, "failed to commit")
 	}
-	assert.Equal(t, 0, len(root.committedEvents))
+
+	assert.Equal(t, 0, root.uncommittedEvents.len)
 }
