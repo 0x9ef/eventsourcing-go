@@ -3,6 +3,7 @@ package event
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -21,6 +22,8 @@ type Eventer interface {
 	SetTimestamp(tstamp Timestamp)
 	GetPayload() Payload
 	SetPayload(payload Payload)
+	GetSerializer() SerializerType
+	SetSerializer(s SerializerType)
 }
 
 // Version represents event version.
@@ -49,26 +52,46 @@ func (t Timestamp) Value() (driver.Value, error) {
 type Payload []byte
 
 type Event struct {
-	aggregateId   string
-	aggregateType string
-	reason        string
-	version       Version
-	tstamp        Timestamp
-	payload       Payload
+	aggregateId    string
+	aggregateType  string
+	reason         string
+	version        Version
+	tstamp         Timestamp
+	payload        Payload
+	serializerType SerializerType
 }
 
 var _ (Eventer) = &Event{}
 
 func New(reason string, payload interface{}) (*Event, error) {
-	b, err := json.Marshal(payload)
+	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Event{
-		reason:  reason,
-		payload: b,
-		tstamp:  Timestamp(time.Now()),
+		reason:         reason,
+		payload:        data,
+		tstamp:         Timestamp(time.Now()),
+		serializerType: SerializerTypeJSON,
+	}, nil
+}
+
+func NewWithSerializer(reason string, payload interface{}, serializerType SerializerType) (*Event, error) {
+	s, ok := MatchedSerializers[serializerType]
+	if !ok {
+		return nil, errors.New("unsupported serializer")
+	}
+
+	data, err := s.Encode(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &Event{
+		reason:         reason,
+		payload:        data,
+		tstamp:         Timestamp(time.Now()),
+		serializerType: serializerType,
 	}, nil
 }
 
@@ -126,6 +149,14 @@ func (evt *Event) GetPayload() Payload {
 
 func (evt *Event) SetPayload(payload Payload) {
 	evt.payload = payload
+}
+
+func (evt *Event) GetSerializer() SerializerType {
+	return evt.serializerType
+}
+
+func (evt *Event) SetSerializer(typ SerializerType) {
+	evt.serializerType = typ
 }
 
 func Covarience(events []*Event) []Eventer {

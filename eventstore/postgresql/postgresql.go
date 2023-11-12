@@ -32,6 +32,7 @@ func (r *eventRepository) Get(ctx context.Context, aggregateID, aggregateType st
 			"version",
 			"tstamp",
 			"payload",
+			"serializer",
 		).
 		From(r.tableName)
 
@@ -52,6 +53,7 @@ func (r *eventRepository) Get(ctx context.Context, aggregateID, aggregateType st
 		evtVersion       event.Version
 		evtTimestamp     event.Timestamp
 		evtPayload       event.Payload
+		evtSerializer    event.SerializerType
 	)
 
 	err := r.conn.
@@ -63,6 +65,7 @@ func (r *eventRepository) Get(ctx context.Context, aggregateID, aggregateType st
 			&evtVersion,
 			&evtTimestamp,
 			&evtPayload,
+			&evtSerializer,
 		)
 	if err != nil {
 		return nil, err
@@ -75,6 +78,7 @@ func (r *eventRepository) Get(ctx context.Context, aggregateID, aggregateType st
 	evt.SetVersion(evtVersion)
 	evt.SetTimestamp(evtTimestamp)
 	evt.SetPayload(evtPayload)
+	evt.SetSerializer(evtSerializer)
 
 	return evt, nil
 }
@@ -126,8 +130,9 @@ func (r *eventRepository) List(ctx context.Context, aggregateID, aggregateType s
 			version       event.Version
 			tstamp        event.Timestamp
 			payload       event.Payload
+			serializer    event.SerializerType
 		)
-		if err := rows.Scan(&aggregateId, &aggregateType, &reason, &version, &tstamp, &payload); err != nil {
+		if err := rows.Scan(&aggregateId, &aggregateType, &reason, &version, &tstamp, &payload, &serializer); err != nil {
 			return nil, err
 		}
 
@@ -138,6 +143,7 @@ func (r *eventRepository) List(ctx context.Context, aggregateID, aggregateType s
 		evt.SetVersion(version)
 		evt.SetTimestamp(tstamp)
 		evt.SetPayload(payload)
+		evt.SetSerializer(serializer)
 		events = append(events, evt)
 	}
 	if err := rows.Err(); err != nil {
@@ -179,6 +185,7 @@ func (r *eventRepository) Save(ctx context.Context, events []event.Eventer) erro
 				"version",
 				"tstamp",
 				"payload",
+				"serializer",
 			)
 
 		ib = ib.Values(
@@ -188,6 +195,7 @@ func (r *eventRepository) Save(ctx context.Context, events []event.Eventer) erro
 			evt.GetVersion(),
 			evt.GetTimestamp(),
 			evt.GetPayload(),
+			evt.GetSerializer(),
 		)
 		q, args := ib.Build()
 

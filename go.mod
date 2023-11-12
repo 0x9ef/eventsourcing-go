@@ -10,4 +10,5 @@ require (
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/stretchr/testify v1.8.0
+	go.mongodb.org/mongo-driver v1.13.0
 )
