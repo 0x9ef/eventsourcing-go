@@ -17,6 +17,7 @@ import (
 
 	"github.com/0x9ef/eventsourcing-go"
 	"github.com/0x9ef/eventsourcing-go/event"
+	"github.com/0x9ef/eventsourcing-go/eventstore"
 )
 
 var db *sql.DB
@@ -164,6 +165,70 @@ func TestGet(t *testing.T) {
 	assert.Equal(t, "TestAggregator", evt.GetAggregateType())
 	assert.Equal(t, "confirmed", evt.GetReason())
 	assert.Equal(t, event.Version(2), evt.GetVersion())
+}
+
+func TestList(t *testing.T) {
+	agg := &TestAggregator{}
+	root := eventsourcing.New(agg, agg.Transition, eventsourcing.NanoidGenerator)
+
+	ctx := context.TODO()
+	repo := New(db, "es_events")
+	events, err := seedEvents(root, repo)
+	assert.NoError(t, err, "cannot seed events")
+
+	type testCase struct {
+		name          string
+		aggregateId   string
+		aggregateType string
+		filter        *eventstore.ListFilter
+		// expectations.
+		expectedLen int
+	}
+
+	cases := []testCase{
+		{
+			name:          "positive_all",
+			aggregateId:   events[0].GetAggregateId(),
+			aggregateType: events[0].GetAggregateType(),
+			filter:        nil,
+			expectedLen:   2,
+		},
+		{
+			name:          "positive_before",
+			aggregateId:   events[0].GetAggregateId(),
+			aggregateType: events[0].GetAggregateType(),
+			filter: &eventstore.ListFilter{
+				BeforeVersion: events[1].GetVersion(),
+			},
+			expectedLen: 1,
+		},
+		{
+			name:          "positive_after",
+			aggregateId:   events[0].GetAggregateId(),
+			aggregateType: events[0].GetAggregateType(),
+			filter: &eventstore.ListFilter{
+				AfterVersion: events[0].GetVersion(),
+			},
+			expectedLen: 1,
+		},
+		{
+			name:          "positive_limit_1",
+			aggregateId:   events[0].GetAggregateId(),
+			aggregateType: events[0].GetAggregateType(),
+			filter: &eventstore.ListFilter{
+				Limit: 1,
+			},
+			expectedLen: 1,
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			listEvents, err := repo.List(ctx, testCase.aggregateId, testCase.aggregateType, testCase.filter)
+			assert.NoError(t, err, "failed to get list of events")
+			assert.Equal(t, testCase.expectedLen, len(listEvents))
+		})
+	}
 }
 
 func seedEvents(root *eventsourcing.AggregateRoot, repo *eventRepository) ([]*event.Event, error) {

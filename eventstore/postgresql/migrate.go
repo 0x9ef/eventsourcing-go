@@ -9,7 +9,8 @@ var createMigrations = []string{
 		reason         TEXT NOT NULL,
 		version        SMALLINT NOT NULL,
 		tstamp         TIMESTAMPTZ NOT NULL,
-		payload        bytea
+		payload        bytea,
+		serializer     VARCHAR(16)
 	);`,
 	"CREATE UNIQUE INDEX id_type_version_un ON public.es_events (aggregate_id, aggregate_type, version);",
 	"CREATE INDEX id_type_idx ON public.es_events (aggregate_id, aggregate_type);",

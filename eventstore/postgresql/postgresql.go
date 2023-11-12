@@ -93,6 +93,7 @@ func (r *eventRepository) List(ctx context.Context, aggregateID, aggregateType s
 			"version",
 			"tstamp",
 			"payload",
+			"serializer",
 		).
 		From(r.tableName)
 
@@ -118,7 +119,7 @@ func (r *eventRepository) List(ctx context.Context, aggregateID, aggregateType s
 	}
 
 	var rowsSize = 16 // preallocated buffer
-	if filter.Limit > 0 {
+	if filter != nil && filter.Limit > 0 {
 		rowsSize = filter.Limit
 	}
 	events := make([]event.Eventer, 0, rowsSize)
