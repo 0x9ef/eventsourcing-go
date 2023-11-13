@@ -10,7 +10,7 @@ import (
 )
 
 type PaymentAggregator struct {
-	*AggregateRoot
+	*AggregateCluster
 	// General.
 	PaymentID              string
 	PaymentStatus          string
@@ -88,7 +88,7 @@ func (pa *PaymentAggregator) onRefunded(evt event.Eventer) error {
 
 func TestApply(t *testing.T) {
 	agg := &PaymentAggregator{}
-	root := New(agg, agg.Transition, NanoidGenerator)
+	agg.AggregateCluster = New(agg, agg.Transition, NanoidGenerator)
 
 	events := []*event.Event{
 		mustNewEvent(PaymentAggregateReasonCreated, paymentCreatedEvent{
@@ -106,8 +106,8 @@ func TestApply(t *testing.T) {
 	}
 
 	for _, evt := range events {
-		err := root.Apply(evt)
-		assert.NoError(t, err, "cannot apply event")
+		err := agg.Apply(evt)
+		assert.NoError(t, err, "failed to apply event")
 	}
 
 	assert.Equal(t, "id_0", agg.PaymentID)
@@ -115,7 +115,7 @@ func TestApply(t *testing.T) {
 	assert.Equal(t, 100, agg.PaymentAmount)
 	assert.Equal(t, 50, agg.PaymentRefundAmount)
 	assert.Equal(t, 50, agg.PaymentAvailableAmount)
-	assert.Equal(t, event.Version(3), root.GetVersion())
+	assert.Equal(t, event.Version(3), agg.GetVersion())
 }
 
 func mustNewEvent(reason string, payload interface{}) *event.Event {
@@ -128,7 +128,7 @@ func mustNewEvent(reason string, payload interface{}) *event.Event {
 
 func TestApplyCommitted(t *testing.T) {
 	agg := &PaymentAggregator{}
-	root := New(agg, agg.Transition, NanoidGenerator)
+	agg.AggregateCluster = New(agg, agg.Transition, NanoidGenerator)
 
 	evtCreated := mustNewEvent(PaymentAggregateReasonCreated, paymentCreatedEvent{
 		PaymentID:              "id_0",
@@ -155,7 +155,7 @@ func TestApplyCommitted(t *testing.T) {
 	evtRefunded.SetVersion(3)
 
 	for _, evt := range []*event.Event{evtCreated, evtConfirmed, evtRefunded} {
-		err := root.ApplyCommitted(evt)
+		err := agg.ApplyCommitted(evt)
 		assert.NoError(t, err, "failed to apply committed")
 	}
 
@@ -164,14 +164,14 @@ func TestApplyCommitted(t *testing.T) {
 	assert.Equal(t, 100, agg.PaymentAmount)
 	assert.Equal(t, 50, agg.PaymentRefundAmount)
 	assert.Equal(t, 50, agg.PaymentAvailableAmount)
-	assert.Equal(t, "agg_0", root.GetId(), "mismatched aggregate id")
-	assert.Equal(t, "PaymentAggregator", root.GetType(), "mismatched aggregate type")
-	assert.Equal(t, event.Version(3), root.GetVersion(), "mismatched event version")
+	assert.Equal(t, "agg_0", agg.GetId(), "mismatched aggregate id")
+	assert.Equal(t, "PaymentAggregator", agg.GetType(), "mismatched aggregate type")
+	assert.Equal(t, event.Version(3), agg.GetVersion(), "mismatched event version")
 }
 
 func TestApplyCommittedDuplicate(t *testing.T) {
 	agg := &PaymentAggregator{}
-	root := New(agg, agg.Transition, NanoidGenerator)
+	agg.AggregateCluster = New(agg, agg.Transition, NanoidGenerator)
 
 	evtCreated := mustNewEvent(PaymentAggregateReasonCreated, paymentCreatedEvent{
 		PaymentID:              "id_0",
@@ -191,7 +191,7 @@ func TestApplyCommittedDuplicate(t *testing.T) {
 	evtConfirmed.SetVersion(1) // version duplication
 
 	for _, evt := range []*event.Event{evtCreated, evtConfirmed} {
-		err := root.ApplyCommitted(evt)
+		err := agg.ApplyCommitted(evt)
 		if err != nil {
 			assert.Error(t, err, ErrEventDuplication)
 		}
@@ -200,7 +200,7 @@ func TestApplyCommittedDuplicate(t *testing.T) {
 
 func TestCommit(t *testing.T) {
 	agg := &PaymentAggregator{}
-	root := New(agg, agg.Transition, NanoidGenerator)
+	agg.AggregateCluster = New(agg, agg.Transition, NanoidGenerator)
 
 	events := []*event.Event{
 		mustNewEvent(PaymentAggregateReasonCreated, paymentCreatedEvent{
@@ -218,12 +218,12 @@ func TestCommit(t *testing.T) {
 	}
 
 	for _, evt := range events {
-		err := root.Apply(evt)
+		err := agg.Apply(evt)
 		assert.NoError(t, err, "failed to apply")
 
-		err = root.Commit(evt)
+		err = agg.Commit(evt)
 		assert.NoError(t, err, "failed to commit")
 	}
 
-	assert.Equal(t, 0, root.uncommittedEvents.len)
+	assert.Equal(t, 0, agg.uncommittedEvents.len)
 }

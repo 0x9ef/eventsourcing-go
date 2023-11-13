@@ -88,7 +88,7 @@ func TestMain(m *testing.M) {
 }
 
 type TestAggregator struct {
-	*eventsourcing.AggregateRoot
+	*eventsourcing.AggregateCluster
 	Status string
 }
 
@@ -231,7 +231,7 @@ func TestList(t *testing.T) {
 	}
 }
 
-func seedEvents(root *eventsourcing.AggregateRoot, repo *eventRepository) ([]*event.Event, error) {
+func seedEvents(root *eventsourcing.AggregateCluster, repo *eventRepository) ([]*event.Event, error) {
 	events := []*event.Event{
 		event.MustNew("created", eventTestCreated{Status: "Created"}),
 		event.MustNew("confirmed", eventTestConfirmed{Status: "Confirmed"}),
